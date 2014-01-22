@@ -1,19 +1,11 @@
 #!/usr/bin/env python
 import serial
 import re
-import matplotlib.pyplot as plt
+import logging
 
 from dateutil import parser
 
-
-class Meter(object):
-    def __init__(self, device, speed, bits, stop, parity, timeout=1):
-        self.device = serial.Serial(device, speed, bits, stop, parity, timeout=timeout)
-
-    def _cmd(self, cmd):
-        self.device.write(cmd)
-
-class OneTouchUltra2(Meter):
+class OneTouchUltra2(object):
     record_header = re.compile(r'P (\d\d\d),"([^"]+)","([^"]+) "')
     record_row = re.compile(r'P "(\w+)","([\w\/]+)","([\w:]+)   ","([\s\d]+)","([NBA])","(\d+)".*')
     FLAGS = {
@@ -36,13 +28,16 @@ class OneTouchUltra2(Meter):
         'Other',
     ]
     def __init__(self, device='/dev/ttyUSB0'):
-        super(OneTouchUltra2, self).__init__(device, 9600, 8, 'N', 1, timeout=20)
+        self._connect(device, 9600, 8, 'N', 1, timeout=20)
+
+    def _connect(self, device, speed, bits, stop, parity, timeout=1):
+        self.serial = serial.Serial(device, speed, bits, stop, parity, timeout=timeout)
 
     def _cmd(self, cmd):
-        super(OneTouchUltra2, self)._cmd("\x11\r%s" % cmd)
+        self.serial.write("\x11\r%s" % cmd)
 
     def _readline(self):
-        return self._checksum(self.device.readline())
+        return self._checksum(self.serial.readline())
 
     def _checksum(self, data):
         last_space = data.rfind(' ')
@@ -73,11 +68,10 @@ class OneTouchUltra2(Meter):
         control_records = []
         for x in xrange(0, rows):
             row = self._readline()
-            #record_row = re.compile(r'P "(\w+)","([\w\/]+)","([\w:]+)   ","([\s\d]+)","([NBA])","(\d+)".*')
             day, date, time, bg, flag, comment = OneTouchUltra2.record_row.search(row).groups()
             record = {
                 'date': parser.parse("%s %s" % (date,time)),
-                'bg': int(bg),
+                'bg': int(bg) if not bg.startswith('C') else int(bg[1:]),
                 'flag': OneTouchUltra2.FLAGS[flag],
                 'comment': OneTouchUltra2.COMMENTS[int(comment)],
                 'units': units,
@@ -97,23 +91,3 @@ class OneTouchUltra2(Meter):
     def timeformat(self):
         self._cmd('DMST?')
         return self._readline()
-
-
-def main():
-    ot = OneTouchUltra2()
-    r,c = ot.records()
-    plt.plot([x['date'] for x in r], [x['bg'] for x in r], 'bo-')
-    plt.ylabel('Blood Glucose')
-    plt.xlabel('Date')
-    plt.axis([
-        min([x['date'] for x in r]), 
-        max([x['date'] for x in r]), 
-        min([x['bg'] for x in r])-50,
-        max([x['bg'] for x in r])+50
-    ])
-    plt.axes().yaxis.grid()
-    plt.show()
-
-
-if __name__ == '__main__':
-    main()
