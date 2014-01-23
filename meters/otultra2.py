@@ -8,6 +8,7 @@ from dateutil import parser
 class OneTouchUltra2(object):
     record_header = re.compile(r'P (\d\d\d),"([^"]+)","([^"]+) "')
     record_row = re.compile(r'P "(\w+)","([\w\/]+)","([\w:]+)   ","([\s\d]+)","([NBA])","(\d+)".*')
+    sn_row = re.compile(r'@ "([^"]+)"')
     FLAGS = {
         'N': "None",
         'B': "Before Meal",
@@ -52,9 +53,9 @@ class OneTouchUltra2(object):
         self._cmd('DM?')
         return self._readline()
 
-    def serial(self):
+    def device_id(self):
         self._cmd('DM@')
-        return self._readline()
+        return OneTouchUltra2.sn_row.match(self._readline()).group(1)
 
     def datetime(self):
         self._cmd('DMF')

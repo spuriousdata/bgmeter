@@ -9,7 +9,6 @@ import logging
 from cmd import Cmd
 
 import matplotlib.pyplot as plt
-from dateutil import parser
 
 from meters import Meter
 
@@ -32,6 +31,25 @@ class BgMeterCLI(Cmd, Meter):
         self._setup_db()
         self._detect_meter()
 
+    def do_update(self, x):
+        self._update()
+        print "done"
+
+    def do_plot(self, x):
+        r = self._get_graph_data()
+        plt.plot([x[0] for x in r], [x[1] for x in r], 'bo-')
+        plt.ylabel('Blood Glucose')
+        plt.xlabel('Date')
+        plt.axis([
+            min([x[0] for x in r]), 
+            max([x[0] for x in r]), 
+            min([x[1] for x in r])-50,
+            max([x[1] for x in r])+50
+        ])
+        plt.axes().yaxis.grid()
+        plt.show()
+
+
     def do_version(self, x):
         print self.device.version()
 
@@ -53,23 +71,6 @@ class BgMeterCLI(Cmd, Meter):
 
 def main():
     BgMeterCLI().cmdloop()
-
-    """
-    ot = OneTouchUltra2()
-    r,c = ot.records()
-    plt.plot([x['date'] for x in r], [x['bg'] for x in r], 'bo-')
-    plt.ylabel('Blood Glucose')
-    plt.xlabel('Date')
-    plt.axis([
-        min([x['date'] for x in r]), 
-        max([x['date'] for x in r]), 
-        min([x['bg'] for x in r])-50,
-        max([x['bg'] for x in r])+50
-    ])
-    plt.axes().yaxis.grid()
-    plt.show()
-    """
-
 
 if __name__ == '__main__':
     main()
